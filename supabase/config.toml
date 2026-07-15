@@ -1,0 +1,13 @@
+# Turile Cockpit — Supabase project config.
+# Project lives in Volodymyr's own Supabase account (never Lovable Cloud).
+# Replace project_id with the real ref after `supabase link`.
+project_id = "turile-cockpit"
+
+# ── Edge function auth posture ────────────────────────────────────────────────
+# Every function MUST declare verify_jwt explicitly here, in the repo.
+# (Lesson from the Lovable-managed CRM, where this lived only in a dashboard.)
+# Public token-based endpoints (activation, booking-request magic links) set
+# verify_jwt = false and do their own token verification + rate limiting.
+#
+# [functions.activate-voucher]
+# verify_jwt = false
