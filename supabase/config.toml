@@ -8,6 +8,9 @@ project_id = "turile-cockpit"
 # (Lesson from the Lovable-managed CRM, where this lived only in a dashboard.)
 # Public token-based endpoints (activation, booking-request magic links) set
 # verify_jwt = false and do their own token verification + rate limiting.
-#
-# [functions.activate-voucher]
-# verify_jwt = false
+
+# Public by design: recipients have no account. The function does its own
+# validation (code+email+PIN combined verdict, scrypt KDF, per-IP + global
+# sliding windows, per-voucher tarpit) — see its header comment.
+[functions.activate-voucher]
+verify_jwt = false
