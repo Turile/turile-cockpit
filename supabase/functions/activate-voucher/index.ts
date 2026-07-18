@@ -15,7 +15,7 @@
 //   from our DB. Secrets come from Deno.env only and are never logged.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import { createHash, scrypt as scryptCb, timingSafeEqual } from "node:crypto";
+import { createHash, createHmac, scrypt as scryptCb, timingSafeEqual } from "node:crypto";
 import { Buffer } from "node:buffer";
 
 // ── Tunables ─────────────────────────────────────────────────────────────────
@@ -34,6 +34,12 @@ const SCRYPT_N = 16384, SCRYPT_R = 8, SCRYPT_P = 1, SCRYPT_LEN = 32;
 const PIN_HASH_VERSION = "v1";
 // Burned on every no-voucher path so "code not found" costs the same as a PIN check.
 const DUMMY_SALT = "0000000000000000000000000000000000000000000000000000000000000000";
+
+// Successful activation mints a short-lived stateless session token
+// (v1.<voucher_id>.<exp_unix>.<hmac>) consumed by booking/exchange/balance
+// endpoints — PIN entry stays the single authentication ceremony. Expired
+// token → the client simply re-activates (idempotent) for a fresh one.
+const SESSION_TTL_S = 60 * 60;
 
 const NOT_FOUND_BODY = {
   error: "not_found",
@@ -96,7 +102,8 @@ Deno.serve(async (req) => {
     const shopifyClientId = Deno.env.get("SHOPIFY_CLIENT_ID");
     const shopifyClientSecret = Deno.env.get("SHOPIFY_CLIENT_SECRET");
     const shopifyDomain = Deno.env.get("SHOPIFY_STORE_DOMAIN");
-    if (!supabaseUrl || !serviceKey || !shopifyClientId || !shopifyClientSecret || !shopifyDomain || !appBaseUrl) {
+    const sessionSecret = Deno.env.get("SESSION_SIGNING_SECRET");
+    if (!supabaseUrl || !serviceKey || !shopifyClientId || !shopifyClientSecret || !shopifyDomain || !appBaseUrl || !sessionSecret) {
       return json(500, { error: "server_misconfigured" });
     }
     const admin = createClient(supabaseUrl, serviceKey);
@@ -262,8 +269,14 @@ Deno.serve(async (req) => {
       pinnedExperience = exp ?? null;
     }
 
+    const sessionExp = Math.floor(Date.now() / 1000) + SESSION_TTL_S;
+    const sessionPayload = `v1.${voucher.id}.${sessionExp}`;
+    const sessionToken = `${sessionPayload}.${createHmac("sha256", sessionSecret).update(sessionPayload).digest("hex")}`;
+
     return json(200, {
       ok: true,
+      session_token: sessionToken,
+      session_expires_at: new Date(sessionExp * 1000).toISOString(),
       voucher: {
         code_last4: voucher.code_last4,
         status: voucher.activated_at ? voucher.status : "activated",

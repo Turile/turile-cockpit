@@ -14,3 +14,8 @@ project_id = "turile-cockpit"
 # sliding windows, per-voucher tarpit) — see its header comment.
 [functions.activate-voucher]
 verify_jwt = false
+
+# Public by design: authenticated by the stateless HMAC session token minted
+# by activate-voucher (SESSION_SIGNING_SECRET), not by a Supabase JWT.
+[functions.booking-request]
+verify_jwt = false
