@@ -19,3 +19,9 @@ verify_jwt = false
 # by activate-voucher (SESSION_SIGNING_SECRET), not by a Supabase JWT.
 [functions.booking-request]
 verify_jwt = false
+
+# Public by design: provider-side auth via the emailed magic-link token
+# (SHA-256 hash lookup + expiry + one-shot burn), separate from the
+# recipient session token.
+[functions.provider-respond]
+verify_jwt = false
